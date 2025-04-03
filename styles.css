@@ -1,0 +1,343 @@
+/* Base styles */
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #f8f9fa;
+}
+
+/* Container styles */
+.container {
+    max-width: 1200px;
+    width: 95%;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Input group styles */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.input-group label {
+    margin-bottom: 5px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.input-group input {
+    margin: 0;
+    padding: 8px 12px;
+    width: 90%;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+/* Button styles */
+.button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.button-container button {
+    margin: 0;
+    width: 100%;
+    background: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.button-container button:hover {
+    background: #0056b3;
+}
+
+/* Result section */
+#result {
+    margin-top: 20px;
+    font-weight: bold;
+}
+
+/* Network visualization section */
+#network-container {
+    margin-top: 30px;
+    padding: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+#network-container h3 {
+    color: #495057;
+    margin-bottom: 20px;
+}
+
+#network-visualization {
+    width: 100%;
+    height: 800px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    overflow: auto;
+}
+
+#network-visualization svg {
+    width: 100%;
+    height: 100%;
+    min-width: 900px;
+    min-height: 900px;
+}
+
+/* City node styles */
+.city circle {
+    transition: all 0.2s ease;
+}
+
+.city circle:hover {
+    r: 10;
+    fill: #dc3545;
+    cursor: pointer;
+}
+
+.city text {
+    pointer-events: none;
+}
+
+.button-container {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.button-container button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.button-container button:hover {
+    background-color: #0056b3;
+}
+
+#result {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+
+.algorithm-comparison {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.algorithm-result {
+    margin: 15px 0;
+    padding: 15px;
+    border-left: 4px solid #007bff;
+    background: white;
+}
+
+.algorithm-result h5 {
+    color: #007bff;
+    margin: 0 0 10px 0;
+}
+
+.algorithm-result .path {
+    color: #495057;
+    font-size: 1.1em;
+    margin: 8px 0;
+}
+
+.algorithm-result .cost {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.algorithm-result.error {
+    border-left-color: #dc3545;
+    color: #dc3545;
+}
+
+.algorithm-comparison {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.algorithm-result {
+    margin: 15px 0;
+    padding: 15px;
+    border-left: 4px solid #007bff;
+    background: white;
+}
+
+.algorithm-result h5 {
+    color: #007bff;
+    margin: 0 0 10px 0;
+}
+
+.algorithm-result .path {
+    color: #495057;
+    font-size: 1.1em;
+    margin: 8px 0;
+}
+
+.algorithm-result .cost {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.algorithm-result.error {
+    border-left-color: #dc3545;
+    color: #dc3545;
+}
+
+.algorithm-comparison {
+    margin: 20px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.algorithm-result {
+    margin: 10px 0;
+    padding: 15px;
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+}
+
+.algorithm-result h5 {
+    margin: 0 0 10px 0;
+    color: #007bff;
+}
+
+.algorithm-result .path {
+    margin: 5px 0;
+    color: #333;
+}
+
+.algorithm-result .cost {
+    font-weight: bold;
+    color: #28a745;
+}
+
+.error {
+    color: #dc3545;
+    border-left-color: #dc3545;
+}
+
+.algorithm-comparison {
+    margin: 20px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.algorithm-result {
+    margin: 10px 0;
+    padding: 15px;
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+}
+
+.algorithm-result h5 {
+    margin: 0 0 10px 0;
+    color: #007bff;
+}
+
+.algorithm-result .path {
+    margin: 5px 0;
+    color: #333;
+}
+
+.algorithm-result .cost {
+    font-weight: bold;
+    color: #28a745;
+}
+
+/* Add these styles at the end of your CSS file */
+#result {
+    margin: 20px;
+    padding: 20px;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.algorithm-comparison {
+    margin: 20px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: white;
+}
+
+.algorithm-result {
+    margin: 10px 0;
+    padding: 15px;
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+}
+
+.algorithm-result h5 {
+    margin: 0 0 10px 0;
+    color: #007bff;
+}
+
+.algorithm-result .path {
+    margin: 5px 0;
+    color: #333;
+}
+
+.algorithm-result .cost {
+    font-weight: bold;
+    color: #28a745;
+}
+
+.error {
+    color: #dc3545;
+    border-left-color: #dc3545;
+}
+
+#result {
+    margin: 20px auto;
+    padding: 20px;
+    max-width: 1200px;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.algorithm-comparison {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+}
+
+.algorithm-result {
+    margin: 10px 0;
+    padding: 15px;
+    border-left: 4px solid #007bff;
+    background-color: white;
+}
