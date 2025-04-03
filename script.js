@@ -1,138 +1,18 @@
-// Constants and Configurations
-const graph = {};
-const cityLocations = {};
+// Data Storage
+const routeGraph = {};
+const cityPositions = {};
+const routeCache = new Map();
 const gujaratBounds = {
     minLat: 20.1, maxLat: 24.7,
     minLng: 68.1, maxLng: 74.4
 };
 
-// SVG Content Generator
-function generateSVGContent(dimensions, bounds) {
-    const { width, height, padding } = dimensions;
-    
-    const latPadding = (bounds.maxLat - bounds.minLat) * 0.1;
-    const lngPadding = (bounds.maxLng - bounds.minLng) * 0.1;
+// Core UI Functions
+document.addEventListener('DOMContentLoaded', function() {
+    setupEventListeners();
+    showEmptyGraphMessage();
+});
 
-    function scaleX(lng) {
-        return padding + ((lng - (bounds.minLng - lngPadding)) / 
-            ((bounds.maxLng + lngPadding) - (bounds.minLng - lngPadding))) * (width - 2 * padding);
-    }
-    
-    function scaleY(lat) {
-        return padding + ((bounds.maxLat + latPadding - lat) / 
-            ((bounds.maxLat + latPadding) - (bounds.minLat - latPadding))) * (height - 2 * padding);
-    }
-
-    let svgContent = `
-        <svg width="${width}" height="${height}" style="background: #f8f9fa;">
-            <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                    refX="9" refY="3.5" orient="auto">
-                    <polygon points="0 0, 10 3.5, 0 7" fill="#007bff"/>
-                </marker>
-            </defs>
-    `;
-
-    // Draw routes
-    Object.entries(graph).forEach(([city, connections]) => {
-        Object.entries(connections).forEach(([target, data]) => {
-            if (cityLocations[city] && cityLocations[target]) {
-                const x1 = scaleX(cityLocations[city].lng);
-                const y1 = scaleY(cityLocations[city].lat);
-                const x2 = scaleX(cityLocations[target].lng);
-                const y2 = scaleY(cityLocations[target].lat);
-                
-                svgContent += `
-                    <line 
-                        x1="${x1}" y1="${y1}" 
-                        x2="${x2}" y2="${y2}" 
-                        stroke="#007bff" 
-                        stroke-width="2" 
-                        opacity="0.6"
-                        marker-end="url(#arrowhead)"
-                    >
-                        <title>Cost: ${data.cost}, Time: ${data.time}h</title>
-                    </line>
-                `;
-            }
-        });
-    });
-
-    // Draw cities
-    Object.entries(cityLocations).forEach(([city, loc]) => {
-        const x = scaleX(loc.lng);
-        const y = scaleY(loc.lat);
-        svgContent += `
-            <g class="city">
-                <circle 
-                    cx="${x}" cy="${y}" 
-                    r="8"
-                    fill="#28a745"
-                    stroke="#fff"
-                    stroke-width="2"
-                >
-                    <title>${city}\nLat: ${loc.lat.toFixed(4)}\nLng: ${loc.lng.toFixed(4)}</title>
-                </circle>
-                <text 
-                    x="${x + 12}"
-                    y="${y + 5}" 
-                    font-size="14px"
-                    font-weight="bold"
-                    fill="#333"
-                >${city}</text>
-            </g>
-        `;
-    });
-
-    svgContent += '</svg>';
-    return svgContent;
-}
-
-// Load Gujarat Map
-function loadGujaratMap() {
-    clearMap();
-    loadPredefinedCities();
-    loadPredefinedRoutes();
-
-    console.log("Loaded Cities:", cityLocations);
-    console.log("Loaded Routes:", graph);
-
-    displayGraphNetwork();
-}
-
-// City Position Calculator
-function calculateOptimalPosition(existingLocations) {
-    if (Object.keys(existingLocations).length === 0) {
-        return { lat: 22.2587, lng: 71.1924 }; // Gujarat center
-    }
-
-    const idealDistance = 0.5;
-    let bestPosition = null;
-    let bestScore = Infinity;
-
-    for (let lat = gujaratBounds.minLat; lat <= gujaratBounds.maxLat; lat += 0.3) {
-        for (let lng = gujaratBounds.minLng; lng <= gujaratBounds.maxLng; lng += 0.3) {
-            let score = calculatePositionScore(lat, lng, existingLocations, idealDistance);
-            if (score < bestScore) {
-                bestScore = score;
-                bestPosition = { lat, lng };
-            }
-        }
-    }
-    return bestPosition;
-}
-
-function calculatePositionScore(lat, lng, existingLocations, idealDistance) {
-    return Object.values(existingLocations).reduce((score, loc) => {
-        const distance = Math.sqrt(
-            Math.pow(lat - loc.lat, 2) + 
-            Math.pow(lng - loc.lng, 2)
-        );
-        return score + Math.abs(distance - idealDistance);
-    }, 0);
-}
-
-// Data Entry Handlers
 function setupEventListeners() {
     document.getElementById("addData").addEventListener("click", function() {
         const data = getFormData();
@@ -167,46 +47,87 @@ function isValidData(data) {
     return true;
 }
 
-function addNewRoute(data) {
-    // Initialize objects if they don't exist
-    if (!graph[data.start]) graph[data.start] = {};
-    if (!graph[data.end]) graph[data.end] = {};
-    
-    // Add locations if they don't exist
-    if (!cityLocations[data.start]) {
-        cityLocations[data.start] = calculateOptimalPosition(cityLocations);
-    }
-    if (!cityLocations[data.end]) {
-        cityLocations[data.end] = calculateOptimalPosition(cityLocations);
-    }
-
-    // Add the route (bidirectional by default)
-    graph[data.start][data.end] = { 
-        cost: data.cost, 
-        time: data.time 
-    };
-    
-    // Add return route with same values
-    graph[data.end][data.start] = { 
-        cost: data.cost, 
-        time: data.time 
-    };
-
-    console.log(`Added route ${data.start} ↔ ${data.end}`, {
-        start: cityLocations[data.start],
-        end: cityLocations[data.end]
-    });
-}
-
 function clearForm() {
     ["start", "end", "cost", "time"].forEach(id => {
         document.getElementById(id).value = "";
     });
 }
 
-// Graph Visualization
+function clearMap() {
+    Object.keys(routeGraph).forEach(key => delete routeGraph[key]);
+    Object.keys(cityPositions).forEach(key => delete cityPositions[key]);
+    document.getElementById("result").innerHTML = "";
+    document.getElementById("network-visualization").innerHTML = "";
+    showEmptyGraphMessage();
+}
+
+function showEmptyGraphMessage() {
+    document.getElementById('network-visualization').innerHTML = 
+        '<p style="text-align: center; padding: 20px; color: #666;">No cities added yet. Add cities to see the network.</p>';
+}
+
+// Route Management
+function addNewRoute(data) {
+    if (!routeGraph[data.start]) routeGraph[data.start] = {};
+    if (!routeGraph[data.end]) routeGraph[data.end] = {};
+    
+    if (!cityPositions[data.start]) {
+        cityPositions[data.start] = calculateOptimalPosition(cityPositions);
+    }
+    if (!cityPositions[data.end]) {
+        cityPositions[data.end] = calculateOptimalPosition(cityPositions);
+    }
+
+    routeGraph[data.start][data.end] = { 
+        cost: data.cost, 
+        time: data.time 
+    };
+    
+    routeGraph[data.end][data.start] = { 
+        cost: data.cost, 
+        time: data.time 
+    };
+
+    console.log(`Added route ${data.start} ↔ ${data.end}`, {
+        start: cityPositions[data.start],
+        end: cityPositions[data.end]
+    });
+}
+
+function calculateOptimalPosition(existingLocations) {
+    if (Object.keys(existingLocations).length === 0) {
+        return { lat: 22.2587, lng: 71.1924 }; // Gujarat center
+    }
+
+    const idealDistance = 0.5;
+    let bestPosition = null;
+    let bestScore = Infinity;
+
+    for (let lat = gujaratBounds.minLat; lat <= gujaratBounds.maxLat; lat += 0.3) {
+        for (let lng = gujaratBounds.minLng; lng <= gujaratBounds.maxLng; lng += 0.3) {
+            let score = calculatePositionScore(lat, lng, existingLocations, idealDistance);
+            if (score < bestScore) {
+                bestScore = score;
+                bestPosition = { lat, lng };
+            }
+        }
+    }
+    return bestPosition;
+}
+
+function calculatePositionScore(lat, lng, existingLocations, idealDistance) {
+    return Object.values(existingLocations).reduce((score, loc) => {
+        const distance = Math.sqrt(
+            Math.pow(lat - loc.lat, 2) + 
+            Math.pow(lng - loc.lng, 2)
+        );
+        return score + Math.abs(distance - idealDistance);
+    }, 0);
+}
+
+// Visualization
 function displayGraphNetwork() {
-    if (Object.keys(cityLocations).length === 0) {
+    if (Object.keys(cityPositions).length === 0) {
         showEmptyGraphMessage();
         return;
     }
@@ -219,12 +140,12 @@ function displayGraphNetwork() {
 }
 
 function calculateGraphBounds() {
-    if (Object.keys(cityLocations).length === 0) {
+    if (Object.keys(cityPositions).length === 0) {
         return gujaratBounds;
     }
     
-    const lats = Object.values(cityLocations).map(loc => loc.lat);
-    const lngs = Object.values(cityLocations).map(loc => loc.lng);
+    const lats = Object.values(cityPositions).map(loc => loc.lat);
+    const lngs = Object.values(cityPositions).map(loc => loc.lng);
     
     return {
         minLat: Math.min(...lats),
@@ -232,6 +153,87 @@ function calculateGraphBounds() {
         minLng: Math.min(...lngs),
         maxLng: Math.max(...lngs)
     };
+}
+
+function generateSVGContent(dimensions, bounds) {
+    const { width, height, padding } = dimensions;
+    
+    const latPadding = (bounds.maxLat - bounds.minLat) * 0.1;
+    const lngPadding = (bounds.maxLng - bounds.minLng) * 0.1;
+
+    function scaleX(lng) {
+        return padding + ((lng - (bounds.minLng - lngPadding)) / 
+            ((bounds.maxLng + lngPadding) - (bounds.minLng - lngPadding))) * (width - 2 * padding);
+    }
+    
+    function scaleY(lat) {
+        return padding + ((bounds.maxLat + latPadding - lat) / 
+            ((bounds.maxLat + latPadding) - (bounds.minLat - latPadding))) * (height - 2 * padding);
+    }
+
+    let svgContent = `
+        <svg width="${width}" height="${height}" style="background: #f8f9fa;">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                    refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#007bff"/>
+                </marker>
+            </defs>
+    `;
+
+    // Draw routes
+    Object.entries(routeGraph).forEach(([city, connections]) => {
+        Object.entries(connections).forEach(([target, data]) => {
+            if (cityPositions[city] && cityPositions[target]) {
+                const x1 = scaleX(cityPositions[city].lng);
+                const y1 = scaleY(cityPositions[city].lat);
+                const x2 = scaleX(cityPositions[target].lng);
+                const y2 = scaleY(cityPositions[target].lat);
+                
+                svgContent += `
+                    <line 
+                        x1="${x1}" y1="${y1}" 
+                        x2="${x2}" y2="${y2}" 
+                        stroke="#007bff" 
+                        stroke-width="2" 
+                        opacity="0.6"
+                        marker-end="url(#arrowhead)"
+                    >
+                        <title>Cost: ${data.cost}, Time: ${data.time}h</title>
+                    </line>
+                `;
+            }
+        });
+    });
+
+    // Draw cities
+    Object.entries(cityPositions).forEach(([city, loc]) => {
+        const x = scaleX(loc.lng);
+        const y = scaleY(loc.lat);
+        svgContent += `
+            <g class="city">
+                <circle 
+                    cx="${x}" cy="${y}" 
+                    r="8"
+                    fill="#28a745"
+                    stroke="#fff"
+                    stroke-width="2"
+                >
+                    <title>${city}\nLat: ${loc.lat.toFixed(4)}\nLng: ${loc.lng.toFixed(4)}</title>
+                </circle>
+                <text 
+                    x="${x + 12}"
+                    y="${y + 5}" 
+                    font-size="14px"
+                    font-weight="bold"
+                    fill="#333"
+                >${city}</text>
+            </g>
+        `;
+    });
+
+    svgContent += '</svg>';
+    return svgContent;
 }
 
 // Pathfinding Algorithms
@@ -242,7 +244,6 @@ function dijkstra(graph, start, end, key) {
     let previous = {};
     let unvisited = new Set();
     
-    // Initialize all vertices
     for (let vertex in graph) {
         distances[vertex] = Infinity;
         previous[vertex] = null;
@@ -251,7 +252,6 @@ function dijkstra(graph, start, end, key) {
     distances[start] = 0;
 
     while (unvisited.size > 0) {
-        // Find vertex with minimum distance
         let current = [...unvisited].reduce((min, vertex) => 
             distances[vertex] < distances[min] ? vertex : min
         );
@@ -261,7 +261,6 @@ function dijkstra(graph, start, end, key) {
 
         unvisited.delete(current);
 
-        // Update distances to neighbors
         for (let neighbor in graph[current]) {
             if (unvisited.has(neighbor)) {
                 let alt = distances[current] + graph[current][neighbor][key];
@@ -275,7 +274,6 @@ function dijkstra(graph, start, end, key) {
 
     if (distances[end] === Infinity) return null;
 
-    // Reconstruct path
     let path = [];
     let current = end;
     while (current !== null) {
@@ -290,17 +288,14 @@ function dijkstra(graph, start, end, key) {
 }
 
 function astar(graph, start, end, key) {
-  // Use geographic distance as heuristic
   function heuristic(a, b) {
-    if (!cityLocations[a] || !cityLocations[b]) return 0;
+    if (!cityPositions[a] || !cityPositions[b]) return 0;
     
-    // Calculate Haversine distance (distance between two points on a sphere)
-    const lat1 = cityLocations[a].lat;
-    const lng1 = cityLocations[a].lng;
-    const lat2 = cityLocations[b].lat;
-    const lng2 = cityLocations[b].lng;
+    const lat1 = cityPositions[a].lat;
+    const lng1 = cityPositions[a].lng;
+    const lat2 = cityPositions[b].lat;
+    const lng2 = cityPositions[b].lng;
     
-    // Convert to radians
     const toRad = value => value * Math.PI / 180;
     const dLat = toRad(lat2 - lat1);
     const dLng = toRad(lng2 - lng1);
@@ -310,13 +305,10 @@ function astar(graph, start, end, key) {
                Math.sin(dLng/2) * Math.sin(dLng/2);
     const c = 2 * Math.atan2(Math.sqrt(a1), Math.sqrt(1-a1));
     
-    // Earth radius in km
     const R = 6371;
     const distance = R * c;
     
-    // Scale the distance to approximate the cost or time
-    // This factor can be tuned based on the average speed or cost per kilometer
-    const scaleFactor = key === 'cost' ? 20 : 0.3; // Cost in ₹ or time in hours
+    const scaleFactor = key === 'cost' ? 20 : 0.3;
     return distance * scaleFactor;
   }
 
@@ -325,7 +317,6 @@ function astar(graph, start, end, key) {
   let gScore = {};
   let fScore = {};
   
-  // Initialize scores
   Object.keys(graph).forEach(node => {
     gScore[node] = Infinity;
     fScore[node] = Infinity;
@@ -335,13 +326,11 @@ function astar(graph, start, end, key) {
   fScore[start] = heuristic(start, end);
 
   while (openSet.size > 0) {
-    // Find node with lowest fScore in openSet
     let current = [...openSet].reduce((a, b) => 
       (fScore[a] || Infinity) < (fScore[b] || Infinity) ? a : b
     );
     
     if (current === end) {
-      // Reconstruct path
       let path = [];
       let totalCost = gScore[end];
       while (current !== undefined) {
@@ -371,10 +360,9 @@ function astar(graph, start, end, key) {
     }
   }
   
-  return null; // No path found
+  return null;
 }
 
-// Fix 2: Improve DFS to consistently find different paths
 function dfs(graph, start, end, key) {
   let visited = new Set();
   let bestPath = null;
@@ -391,8 +379,6 @@ function dfs(graph, start, end, key) {
     
     if (!graph[node]) return;
     
-    // Sort neighbors by weight to create a depth-first search 
-    // with preference for lower cost edges first (greedy approach)
     const neighbors = Object.entries(graph[node])
       .map(([nbr, data]) => ({ nbr, weight: data[key] }))
       .sort((a, b) => a.weight - b.weight);
@@ -414,7 +400,6 @@ function dfs(graph, start, end, key) {
   return bestPath ? { path: bestPath, cost: bestCost } : null;
 }
 
-// Fix 3: Improve BFS to find different paths by using a priority queue approach
 function bfs(graph, start, end, key) {
   let queue = [{node: start, path: [start], cost: 0}];
   let visited = new Set([start]);
@@ -444,24 +429,19 @@ function bfs(graph, start, end, key) {
       }
   }
   
-  // Add return statement here
   return bestPath ? { path: bestPath, cost: bestCost } : null;
 }
-
-// Add after existing pathfinding algorithms
 
 function bellmanFord(graph, start, end, key) {
     let distances = {};
     let previous = {};
     
-    // Initialize distances
     Object.keys(graph).forEach(node => {
         distances[node] = Infinity;
         previous[node] = null;
     });
     distances[start] = 0;
     
-    // Relax edges |V| - 1 times
     for (let i = 0; i < Object.keys(graph).length - 1; i++) {
         Object.keys(graph).forEach(node => {
             Object.keys(graph[node]).forEach(neighbor => {
@@ -476,7 +456,6 @@ function bellmanFord(graph, start, end, key) {
     
     if (distances[end] === Infinity) return null;
     
-    // Reconstruct path
     let path = [];
     let current = end;
     while (current) {
@@ -494,7 +473,6 @@ function floydWarshall(graph, start, end, key) {
     let dist = {};
     let next = {};
     
-    // Initialize distances and next pointers
     Object.keys(graph).forEach(i => {
         dist[i] = {};
         next[i] = {};
@@ -509,7 +487,6 @@ function floydWarshall(graph, start, end, key) {
         });
     });
     
-    // Floyd-Warshall algorithm
     Object.keys(graph).forEach(k => {
         Object.keys(graph).forEach(i => {
             Object.keys(graph).forEach(j => {
@@ -523,7 +500,6 @@ function floydWarshall(graph, start, end, key) {
     
     if (dist[start][end] === Infinity) return null;
     
-    // Reconstruct path
     let path = [start];
     let current = start;
     while (current !== end) {
@@ -537,7 +513,7 @@ function floydWarshall(graph, start, end, key) {
     };
 }
 
-// Route Finding Interface
+// Route Finding Functions
 function findOptimalRoute(type) {
     const start = prompt("Enter start city:").toUpperCase();
     const end = prompt("Enter end city:").toUpperCase();
@@ -547,13 +523,13 @@ function findOptimalRoute(type) {
         return;
     }
     
-    if (!cityLocations[start] || !cityLocations[end]) {
+    if (!cityPositions[start] || !cityPositions[end]) {
         alert(`One or both cities not found in the network.
-Available cities: ${Object.keys(cityLocations).join(", ")}`);
+Available cities: ${Object.keys(cityPositions).join(", ")}`);
         return;
     }
     
-    const route = dijkstra(graph, start, end, type);
+    const route = dijkstra(routeGraph, start, end, type);
     
     if (!route) {
         document.getElementById("result").innerHTML = `
@@ -567,14 +543,10 @@ Available cities: ${Object.keys(cityLocations).join(", ")}`);
     displayRoute(route, type);
 }
 
-// Add at the top of the file
-const routeCache = new Map();
-
-// Modify findOptimalRouteAll to add debug logging
 function findOptimalRouteAll() {
     console.log("Starting findOptimalRouteAll");
     
-    if (Object.keys(cityLocations).length === 0) {
+    if (Object.keys(cityPositions).length === 0) {
         loadGujaratMap();
     }
 
@@ -583,17 +555,17 @@ function findOptimalRouteAll() {
     
     console.log(`Searching route from ${start} to ${end}`);
 
-    if (!start || !end || !cityLocations[start] || !cityLocations[end]) {
+    if (!start || !end || !cityPositions[start] || !cityPositions[end]) {
         document.getElementById("result").innerHTML = `
             <div class="algorithm-result error">
                 <h4>Error: Invalid cities</h4>
-                <p>Available cities: ${Object.keys(cityLocations).join(", ")}</p>
+                <p>Available cities: ${Object.keys(cityPositions).join(", ")}</p>
             </div>
         `;
         return;
     }
 
-    if (!hasValidPath(graph, start, end)) {
+    if (!hasValidPath(routeGraph, start, end)) {
         document.getElementById("result").innerHTML = `
             <div class="algorithm-result error">
                 <h4>No valid path exists between ${start} and ${end}</h4>
@@ -602,23 +574,22 @@ function findOptimalRouteAll() {
         return;
     }
 
-    // Get results for both cost and time optimization
     const costAlgorithms = {
-        "Dijkstra (Cost)": dijkstra(graph, start, end, "cost"),
-        "A* (Cost)": astar(graph, start, end, "cost"),
-        "DFS (Cost)": dfs(graph, start, end, "cost"),
-        "BFS (Cost)": bfs(graph, start, end, "cost"),
-        "Bellman-Ford (Cost)": bellmanFord(graph, start, end, "cost"),
-        "Floyd-Warshall (Cost)": floydWarshall(graph, start, end, "cost")
+        "Dijkstra (Cost)": dijkstra(routeGraph, start, end, "cost"),
+        "A* (Cost)": astar(routeGraph, start, end, "cost"),
+        "DFS (Cost)": dfs(routeGraph, start, end, "cost"),
+        "BFS (Cost)": bfs(routeGraph, start, end, "cost"),
+        "Bellman-Ford (Cost)": bellmanFord(routeGraph, start, end, "cost"),
+        "Floyd-Warshall (Cost)": floydWarshall(routeGraph, start, end, "cost")
     };
 
     const timeAlgorithms = {
-        "Dijkstra (Time)": dijkstra(graph, start, end, "time"),
-        "A* (Time)": astar(graph, start, end, "time"),
-        "DFS (Time)": dfs(graph, start, end, "time"),
-        "BFS (Time)": bfs(graph, start, end, "time"),
-        "Bellman-Ford (Time)": bellmanFord(graph, start, end, "time"),
-        "Floyd-Warshall (Time)": floydWarshall(graph, start, end, "time")
+        "Dijkstra (Time)": dijkstra(routeGraph, start, end, "time"),
+        "A* (Time)": astar(routeGraph, start, end, "time"),
+        "DFS (Time)": dfs(routeGraph, start, end, "time"),
+        "BFS (Time)": bfs(routeGraph, start, end, "time"),
+        "Bellman-Ford (Time)": bellmanFord(routeGraph, start, end, "time"),
+        "Floyd-Warshall (Time)": floydWarshall(routeGraph, start, end, "time")
     };
 
     displayResults(start, end, costAlgorithms, timeAlgorithms);
@@ -627,7 +598,6 @@ function findOptimalRouteAll() {
 function displayResults(start, end, costAlgorithms, timeAlgorithms) {
     const resultDiv = document.getElementById("result");
     
-    // Find best cost and time paths
     const bestCost = Object.values(costAlgorithms)
         .filter(result => result !== null)
         .reduce((min, curr) => (!min || curr.cost < min.cost) ? curr : min, null);
@@ -698,11 +668,26 @@ function displayResults(start, end, costAlgorithms, timeAlgorithms) {
     resultDiv.innerHTML = html;
 }
 
-// Helper functions to calculate total cost and time for a path
+function displayRoute(route, type) {
+    const resultDiv = document.getElementById("result");
+    const formattedValue = type === 'time' ? 
+        `${Math.floor(route.cost)}h ${Math.round((route.cost % 1) * 60)}m` : 
+        `₹${route.cost.toFixed(2)}`;
+    
+    resultDiv.innerHTML = `
+        <div class="route-result">
+            <h4>Optimal ${type.charAt(0).toUpperCase() + type.slice(1)} Route:</h4>
+            <p class="route-path">Path: ${route.path.join(" → ")}</p>
+            <p class="route-detail">Total ${type}: ${formattedValue}</p>
+        </div>
+    `;
+}
+
+// Helper Functions
 function getRouteCost(path) {
     let totalCost = 0;
     for (let i = 0; i < path.length - 1; i++) {
-        totalCost += graph[path[i]][path[i + 1]].cost;
+        totalCost += routeGraph[path[i]][path[i + 1]].cost;
     }
     return totalCost;
 }
@@ -710,12 +695,11 @@ function getRouteCost(path) {
 function getRouteTime(path) {
     let totalTime = 0;
     for (let i = 0; i < path.length - 1; i++) {
-        totalTime += graph[path[i]][path[i + 1]].time;
+        totalTime += routeGraph[path[i]][path[i + 1]].time;
     }
     return totalTime;
 }
 
-// Add this helper function to check if a path exists
 function hasValidPath(graph, start, end) {
   let visited = new Set();
   let queue = [start];
@@ -737,36 +721,18 @@ function hasValidPath(graph, start, end) {
   return false;
 }
 
-function clearMap() {
-    Object.keys(graph).forEach(key => delete graph[key]);
-    Object.keys(cityLocations).forEach(key => delete cityLocations[key]);
-    document.getElementById("result").innerHTML = "";
-    document.getElementById("network-visualization").innerHTML = "";
-    showEmptyGraphMessage();
+// Data Loading
+function loadGujaratMap() {
+    clearMap();
+    loadPredefinedCities();
+    loadPredefinedRoutes();
+
+    console.log("Loaded Cities:", cityPositions);
+    console.log("Loaded Routes:", routeGraph);
+
+    displayGraphNetwork();
 }
 
-// Utility Functions
-function showEmptyGraphMessage() {
-    document.getElementById('network-visualization').innerHTML = 
-        '<p style="text-align: center; padding: 20px; color: #666;">No cities added yet. Add cities to see the network.</p>';
-}
-
-function displayRoute(route, type) {
-    const resultDiv = document.getElementById("result");
-    const formattedValue = type === 'time' ? 
-        `${Math.floor(route.cost)}h ${Math.round((route.cost % 1) * 60)}m` : 
-        `₹${route.cost.toFixed(2)}`;
-    
-    resultDiv.innerHTML = `
-        <div class="route-result">
-            <h4>Optimal ${type.charAt(0).toUpperCase() + type.slice(1)} Route:</h4>
-            <p class="route-path">Path: ${route.path.join(" → ")}</p>
-            <p class="route-detail">Total ${type}: ${formattedValue}</p>
-        </div>
-    `;
-}
-
-// Predefined Data
 function loadPredefinedCities() {
     const cities = {
         // Major Cities
