@@ -17,18 +17,19 @@ const selectedPath = {
 document.addEventListener('DOMContentLoaded', function () {
     setupEventListeners();
     showEmptyGraphMessage();
-    loadGujaratMap(); // Add this line to load the initial map
 });
 
 function setupEventListeners() {
-    // Existing add data listener
-    document.getElementById("addData")?.addEventListener("click", function () {
-        const data = getFormData();
-        if (!isValidData(data)) return;
-        addNewRoute(data);
-        clearForm();
-        displayGraphNetwork();
-    });
+    const addDataBtn = document.getElementById("addData");
+    if (addDataBtn) {
+        addDataBtn.addEventListener("click", function() {
+            const data = getFormData();
+            if (!isValidData(data)) return;
+            addNewRoute(data);
+            clearForm();
+            displayGraphNetwork();
+        });
+    }
 
     // Add route finding listeners
     document.getElementById("findRoute")?.addEventListener("click", function () {
@@ -40,6 +41,7 @@ function setupEventListeners() {
     });
 
     document.getElementById("clearMap")?.addEventListener("click", clearMap);
+    document.getElementById("loadGujaratMap")?.addEventListener("click", loadGujaratMap);
 }
 
 function getFormData() {
@@ -66,7 +68,7 @@ function isValidData(data) {
 }
 
 function clearForm() {
-    ["start", "end", "cost", "time"].forEach(id => {
+    ["startCity", "endCity", "cost", "time"].forEach(id => {
         document.getElementById(id).value = "";
     });
 }

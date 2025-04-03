@@ -13,13 +13,13 @@
     
     <div class="container">
         <div class="input-group">
-            <label for="start">Start City:</label>
-            <input type="text" id="start" placeholder="Enter start city">
+            <label for="startCity">Start City:</label>
+            <input type="text" id="startCity" placeholder="Enter start city">
         </div>
         
         <div class="input-group">
-            <label for="end">End City:</label>
-            <input type="text" id="end" placeholder="Enter end city">
+            <label for="endCity">End City:</label>
+            <input type="text" id="endCity" placeholder="Enter end city">
         </div>
         
         <div class="input-group">
@@ -29,16 +29,15 @@
         
         <div class="input-group">
             <label for="time">Time (in hours):</label>
-            <input type="text" id="time" placeholder="Enter time">
+            <input type="number" id="time" placeholder="Enter time">
         </div>
-
+    
         <div class="button-container">
-            <button id="addData">Enter Data</button>
-            <button onclick="findOptimalRoute('cost')">Find Minimum Cost Route</button>
-            <button onclick="findOptimalRoute('time')">Find Minimum Time Route</button>
-            <button onclick="findOptimalRouteAll()">Compare All Algorithms</button>
-            <button onclick="loadGujaratMap()">Load Gujarat Map</button>
-            <button onclick="clearMap()">Clear Map</button>
+            <button id="addData">Add Route</button>
+            <button id="findRoute">Find Route</button>
+            <button id="findAllRoutes">Compare All Routes</button>
+            <button id="loadGujaratMap">Load Gujarat Map</button>
+            <button id="clearMap">Clear Map</button>
         </div>
     </div>
 
