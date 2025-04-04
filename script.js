@@ -31,17 +31,46 @@ function setupEventListeners() {
         });
     }
 
-    // Add route finding listeners
-    document.getElementById("findRoute")?.addEventListener("click", function () {
-        findOptimalRoute('cost');
-    });
+    // Fix: Remove old findRoute listener and add new ones
+    const findMinCostBtn = document.getElementById("findMinCost");
+    if (findMinCostBtn) {
+        findMinCostBtn.addEventListener("click", function() {
+            findOptimalRoute('cost');
+        });
+    }
 
-    document.getElementById("findAllRoutes")?.addEventListener("click", function () {
-        findOptimalRouteAll();
-    });
+    const findMinTimeBtn = document.getElementById("findMinTime");
+    if (findMinTimeBtn) {
+        findMinTimeBtn.addEventListener("click", function() {
+            findOptimalRoute('time');
+        });
+    }
 
-    document.getElementById("clearMap")?.addEventListener("click", clearMap);
-    document.getElementById("loadGujaratMap")?.addEventListener("click", loadGujaratMap);
+    const findAllRoutesBtn = document.getElementById("findAllRoutes");
+    if (findAllRoutesBtn) {
+        findAllRoutesBtn.addEventListener("click", findOptimalRouteAll);
+    }
+
+    const clearMapBtn = document.getElementById("clearMap");
+    if (clearMapBtn) {
+        clearMapBtn.addEventListener("click", clearMap);
+    }
+
+    const loadGujaratMapBtn = document.getElementById("loadGujaratMap");
+    if (loadGujaratMapBtn) {
+        loadGujaratMapBtn.addEventListener("click", loadGujaratMap);
+    }
+
+    // Add console logs for debugging
+    console.log("Event listeners setup complete");
+    console.log("Buttons found:", {
+        addData: !!addDataBtn,
+        findMinCost: !!findMinCostBtn,
+        findMinTime: !!findMinTimeBtn,
+        findAllRoutes: !!findAllRoutesBtn,
+        clearMap: !!clearMapBtn,
+        loadGujaratMap: !!loadGujaratMapBtn
+    });
 }
 
 function getFormData() {

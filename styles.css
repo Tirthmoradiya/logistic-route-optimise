@@ -341,3 +341,26 @@ body {
     border-left: 4px solid #007bff;
     background-color: white;
 }
+
+#findMinCost {
+    background-color: #000000; /* Green for cost */
+}
+
+#findMinTime {
+    background-color: #dc3545; /* Red for time */
+}
+
+#findMinCost:hover {
+    background-color: #218838;
+}
+
+#findMinTime:hover {
+    background-color: #c82333;
+}
+
+/* Add these to existing button styles to ensure proper spacing */
+.button-container button {
+    flex: 1 1 auto;
+    min-width: 200px;
+    margin: 5px;
+}
