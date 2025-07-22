@@ -343,208 +343,260 @@ function isRouteInPath(city1, city2, path) {
     return false;
 }
 
-function displayResults(start, end, costAlgorithms, timeAlgorithms) {
+function displayResults(start, end, costAlgorithms, timeAlgorithms, timings) {
     const resultDiv = document.getElementById("result");
-
+    const costCache = new Map();
+    const timeCache = new Map();
+    function cachedGetRouteCost(path) {
+        if (!path) return NaN;
+        const key = path.join("->");
+        if (costCache.has(key)) return costCache.get(key);
+        let val = getRouteCost(path);
+        costCache.set(key, val);
+        return val;
+    }
+    function cachedGetRouteTime(path) {
+        if (!path) return NaN;
+        const key = path.join("->");
+        if (timeCache.has(key)) return timeCache.get(key);
+        let val = getRouteTime(path);
+        timeCache.set(key, val);
+        return val;
+    }
     const bestCost = Object.values(costAlgorithms)
-        .filter(result => result !== null)
+        .filter(result => result && result.path && !isNaN(result.cost))
         .reduce((min, curr) => (!min || curr.cost < min.cost) ? curr : min, null);
-
     const bestTime = Object.values(timeAlgorithms)
-        .filter(result => result !== null)
+        .filter(result => result && result.path && !isNaN(result.cost))
         .reduce((min, curr) => (!min || curr.cost < min.cost) ? curr : min, null);
-
     let html = `
         <div class="algorithm-comparison">
             <h4>Route Comparison: ${start} to ${end}</h4>
-            
             <div class="best-routes">
                 <div class="best-cost">
                     <h5>Best Cost Route:</h5>
-                    <p class="path">Path: ${bestCost ? bestCost.path.join(" → ") : "Not found"}</p>
+                    <p class="path">Path: ${bestCost && bestCost.path ? bestCost.path.join(" → ") : "Not found"}</p>
                     <p class="details">
-                        Cost: ₹${bestCost ? bestCost.cost.toFixed(2) : "N/A"}
-                        Time: ${bestCost ? Math.floor(getRouteTime(bestCost.path)) : "N/A"}h 
-                              ${bestCost ? Math.round((getRouteTime(bestCost.path) % 1) * 60) : "0"}m
+                        Cost: ₹${bestCost && !isNaN(bestCost.cost) ? bestCost.cost.toFixed(2) : "N/A"}
+                        Time: ${bestCost && bestCost.path && !isNaN(cachedGetRouteTime(bestCost.path)) ? Math.floor(cachedGetRouteTime(bestCost.path)) : "N/A"}h 
+                              ${bestCost && bestCost.path && !isNaN(cachedGetRouteTime(bestCost.path)) ? Math.round((cachedGetRouteTime(bestCost.path) % 1) * 60) : "0"}m
                     </p>
                 </div>
                 <div class="best-time">
                     <h5>Best Time Route:</h5>
-                    <p class="path">Path: ${bestTime ? bestTime.path.join(" → ") : "Not found"}</p>
+                    <p class="path">Path: ${bestTime && bestTime.path ? bestTime.path.join(" → ") : "Not found"}</p>
                     <p class="details">
-                        Time: ${bestTime ? Math.floor(bestTime.cost) : "N/A"}h 
-                              ${bestTime ? Math.round((bestTime.cost % 1) * 60) : "0"}m
-                        Cost: ₹${bestTime ? getRouteCost(bestTime.path).toFixed(2) : "N/A"}
+                        Time: ${bestTime && !isNaN(bestTime.cost) ? Math.floor(bestTime.cost) : "N/A"}h 
+                              ${bestTime && !isNaN(bestTime.cost) ? Math.round((bestTime.cost % 1) * 60) : "0"}m
+                        Cost: ₹${bestTime && bestTime.path && !isNaN(cachedGetRouteCost(bestTime.path)) ? cachedGetRouteCost(bestTime.path).toFixed(2) : "N/A"}
                     </p>
                 </div>
             </div>
-
             <h5>Cost-Optimized Paths:</h5>
     `;
-
     Object.entries(costAlgorithms).forEach(([name, result]) => {
-        if (result && result.path) {
-            const timeForCostPath = getRouteTime(result.path);
-            html += `
-                <div class="algorithm-result">
-                    <h6>${name}</h6>
-                    <p class="path">Path: ${result.path.join(" → ")}</p>
-                    <p class="cost">Cost: ₹${result.cost.toFixed(2)}</p>
-                    <p class="time">Time: ${Math.floor(timeForCostPath)}h ${Math.round((timeForCostPath % 1) * 60)}m</p>
-                </div>
-            `;
+        const timing = timings && typeof timings[name] !== 'undefined' ? timings[name].toFixed(1) + ' ms' : 'N/A';
+        if (!result || !result.path) {
+            html += `<div class="algorithm-result error"><h6>${name}</h6><p>No path found or error</p><p class="timing">⏱️ ${timing}</p></div>`;
+            console.warn(`Algorithm ${name} failed or found no path.`, result);
+            return;
         }
+        const timeForCostPath = cachedGetRouteTime(result.path);
+        const costVal = !isNaN(result.cost) ? result.cost.toFixed(2) : "N/A";
+        const timeVal = !isNaN(timeForCostPath) ? `${Math.floor(timeForCostPath)}h ${Math.round((timeForCostPath % 1) * 60)}m` : "N/A";
+        if (isNaN(result.cost) || isNaN(timeForCostPath)) {
+            console.warn(`Algorithm ${name} returned NaN for cost or time.`, result);
+        }
+        html += `
+            <div class="algorithm-result">
+                <h6>${name}</h6>
+                <p class="path">Path: ${result.path.join(" → ")}</p>
+                <p class="cost">Cost: ₹${costVal}</p>
+                <p class="time">Time: ${timeVal}</p>
+                <p class="timing">⏱️ ${timing}</p>
+            </div>
+        `;
     });
-
     html += `<h5>Time-Optimized Paths:</h5>`;
-
     Object.entries(timeAlgorithms).forEach(([name, result]) => {
-        if (result && result.path) {
-            const costForTimePath = getRouteCost(result.path);
-            html += `
-                <div class="algorithm-result">
-                    <h6>${name}</h6>
-                    <p class="path">Path: ${result.path.join(" → ")}</p>
-                    <p class="time">Time: ${Math.floor(result.cost)}h ${Math.round((result.cost % 1) * 60)}m</p>
-                    <p class="cost">Cost: ₹${costForTimePath.toFixed(2)}</p>
-                </div>
-            `;
+        const timing = timings && typeof timings[name] !== 'undefined' ? timings[name].toFixed(1) + ' ms' : 'N/A';
+        if (!result || !result.path) {
+            html += `<div class="algorithm-result error"><h6>${name}</h6><p>No path found or error</p><p class="timing">⏱️ ${timing}</p></div>`;
+            console.warn(`Algorithm ${name} failed or found no path.`, result);
+            return;
         }
+        const costForTimePath = cachedGetRouteCost(result.path);
+        const timeVal = !isNaN(result.cost) ? `${Math.floor(result.cost)}h ${Math.round((result.cost % 1) * 60)}m` : "N/A";
+        const costVal = !isNaN(costForTimePath) ? costForTimePath.toFixed(2) : "N/A";
+        if (isNaN(result.cost) || isNaN(costForTimePath)) {
+            console.warn(`Algorithm ${name} returned NaN for cost or time.`, result);
+        }
+        html += `
+            <div class="algorithm-result">
+                <h6>${name}</h6>
+                <p class="path">Path: ${result.path.join(" → ")}</p>
+                <p class="time">Time: ${timeVal}</p>
+                <p class="cost">Cost: ₹${costVal}</p>
+                <p class="timing">⏱️ ${timing}</p>
+            </div>
+        `;
     });
-
-    selectedPath.bestCost = bestCost ? bestCost.path : null;
-    selectedPath.bestTime = bestTime ? bestTime.path : null;
+    selectedPath.bestCost = bestCost && bestCost.path ? bestCost.path : null;
+    selectedPath.bestTime = bestTime && bestTime.path ? bestTime.path : null;
     selectedPath.type = 'comparison';
     displayGraphNetwork();
-
     html += '</div>';
     resultDiv.innerHTML = html;
 }
 
-// Pathfinding Algorithms
+// --- MinHeap ---
+class MinHeap {
+    constructor() { this.heap = []; }
+    push(item) { this.heap.push(item); this._bubbleUp(this.heap.length - 1); }
+    pop() {
+        if (this.heap.length === 0) return undefined;
+        const min = this.heap[0];
+        const end = this.heap.pop();
+        if (this.heap.length > 0) { this.heap[0] = end; this._sinkDown(0); }
+        return min;
+    }
+    _bubbleUp(idx) {
+        const element = this.heap[idx];
+        while (idx > 0) {
+            const parentIdx = Math.floor((idx - 1) / 2);
+            const parent = this.heap[parentIdx];
+            if (element[0] >= parent[0]) break;
+            this.heap[parentIdx] = element;
+            this.heap[idx] = parent;
+            idx = parentIdx;
+        }
+    }
+    _sinkDown(idx) {
+        const length = this.heap.length;
+        const element = this.heap[idx];
+        while (true) {
+            let leftIdx = 2 * idx + 1;
+            let rightIdx = 2 * idx + 2;
+            let swap = null;
+            if (leftIdx < length) {
+                if (this.heap[leftIdx][0] < element[0]) { swap = leftIdx; }
+            }
+            if (rightIdx < length) {
+                if ((swap === null && this.heap[rightIdx][0] < element[0]) ||
+                    (swap !== null && this.heap[rightIdx][0] < this.heap[leftIdx][0])) { swap = rightIdx; }
+            }
+            if (swap === null) break;
+            this.heap[idx] = this.heap[swap];
+            this.heap[swap] = element;
+            idx = swap;
+        }
+    }
+    size() { return this.heap.length; }
+}
+// --- Pathfinding Algorithms ---
+// (Paste all algorithms and helpers from pathfinding.worker.js here if not already present)
+// --- Optimized Dijkstra with MinHeap and Caching ---
 function dijkstra(graph, start, end, key) {
+    const cacheKey = `dijkstra_${key}_${start}_${end}`;
+    if (routeCache.has(cacheKey)) return routeCache.get(cacheKey);
     if (!graph[start]) return null;
-
     let distances = {};
     let previous = {};
-    let unvisited = new Set();
-
-    for (let vertex in graph) {
+    let visited = new Set();
+    Object.keys(graph).forEach(vertex => {
         distances[vertex] = Infinity;
         previous[vertex] = null;
-        unvisited.add(vertex);
-    }
+    });
     distances[start] = 0;
-
-    while (unvisited.size > 0) {
-        let current = [...unvisited].reduce((min, vertex) =>
-            distances[vertex] < distances[min] ? vertex : min
-        );
-
+    const heap = new MinHeap();
+    heap.push([0, start]);
+    while (heap.size() > 0) {
+        const [dist, current] = heap.pop();
+        if (visited.has(current)) continue;
+        visited.add(current);
         if (current === end) break;
-        if (distances[current] === Infinity) break;
-
-        unvisited.delete(current);
-
         for (let neighbor in graph[current]) {
-            if (unvisited.has(neighbor)) {
-                let alt = distances[current] + graph[current][neighbor][key];
-                if (alt < distances[neighbor]) {
-                    distances[neighbor] = alt;
-                    previous[neighbor] = current;
-                }
+            let alt = distances[current] + graph[current][neighbor][key];
+            if (alt < distances[neighbor]) {
+                distances[neighbor] = alt;
+                previous[neighbor] = current;
+                heap.push([alt, neighbor]);
             }
         }
     }
-
     if (distances[end] === Infinity) return null;
-
     let path = [];
-    let current = end;
-    while (current !== null) {
-        path.unshift(current);
-        current = previous[current];
+    let curr = end;
+    while (curr !== null) {
+        path.unshift(curr);
+        curr = previous[curr];
     }
-
-    return {
-        path: path,
-        cost: distances[end]
-    };
+    const result = { path: path, cost: distances[end] };
+    routeCache.set(cacheKey, result);
+    return result;
 }
 
 function astar(graph, start, end, key) {
+    const cacheKey = `astar_${key}_${start}_${end}`;
+    if (routeCache.has(cacheKey)) return routeCache.get(cacheKey);
     function heuristic(a, b) {
         if (!cityPositions[a] || !cityPositions[b]) return 0;
-
         const lat1 = cityPositions[a].lat;
         const lng1 = cityPositions[a].lng;
         const lat2 = cityPositions[b].lat;
         const lng2 = cityPositions[b].lng;
-
         const toRad = value => value * Math.PI / 180;
         const dLat = toRad(lat2 - lat1);
         const dLng = toRad(lng2 - lng1);
-
         const a1 = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
             Math.sin(dLng / 2) * Math.sin(dLng / 2);
         const c = 2 * Math.atan2(Math.sqrt(a1), Math.sqrt(1 - a1));
-
         const R = 6371;
         const distance = R * c;
-
         const scaleFactor = key === 'cost' ? 20 : 0.3;
         return distance * scaleFactor;
     }
-
-    let openSet = new Set([start]);
-    let cameFrom = {};
     let gScore = {};
     let fScore = {};
-
+    let previous = {};
     Object.keys(graph).forEach(node => {
         gScore[node] = Infinity;
         fScore[node] = Infinity;
+        previous[node] = null;
     });
-
     gScore[start] = 0;
     fScore[start] = heuristic(start, end);
-
-    while (openSet.size > 0) {
-        let current = [...openSet].reduce((a, b) =>
-            (fScore[a] || Infinity) < (fScore[b] || Infinity) ? a : b
-        );
-
+    const heap = new MinHeap();
+    heap.push([fScore[start], start]);
+    let visited = new Set();
+    while (heap.size() > 0) {
+        const [_, current] = heap.pop();
+        if (visited.has(current)) continue;
+        visited.add(current);
         if (current === end) {
             let path = [];
-            let totalCost = gScore[end];
-            while (current !== undefined) {
-                path.unshift(current);
-                current = cameFrom[current];
+            let curr = end;
+            while (curr !== null) {
+                path.unshift(curr);
+                curr = previous[curr];
             }
-            return { path, cost: totalCost };
+            const result = { path, cost: gScore[end] };
+            routeCache.set(cacheKey, result);
+            return result;
         }
-
-        openSet.delete(current);
-
         if (!graph[current]) continue;
-
         for (let neighbor in graph[current]) {
             let weight = graph[current][neighbor][key];
             let tentativeGScore = gScore[current] + weight;
-
-            if (tentativeGScore < (gScore[neighbor] || Infinity)) {
-                cameFrom[neighbor] = current;
+            if (tentativeGScore < gScore[neighbor]) {
+                previous[neighbor] = current;
                 gScore[neighbor] = tentativeGScore;
                 fScore[neighbor] = tentativeGScore + heuristic(neighbor, end);
-
-                if (!openSet.has(neighbor)) {
-                    openSet.add(neighbor);
-                }
+                heap.push([fScore[neighbor], neighbor]);
             }
         }
     }
-
     return null;
 }
 
@@ -586,25 +638,13 @@ function dfs(graph, start, end, key) {
 }
 
 function bfs(graph, start, end, key) {
-    let queue = [{ node: start, path: [start], cost: 0 }];
-    let visited = new Set([start]);
-    let bestPath = null;
-    let bestCost = Infinity;
-
+    let queue = [{ node: start, path: [start], cost: 0 }], visited = new Set([start]);
     while (queue.length > 0) {
-        queue.sort((a, b) => a.path.length - b.path.length);
         let { node, path, cost } = queue.shift();
-
         if (node === end) {
-            if (cost < bestCost) {
-                bestCost = cost;
-                bestPath = path;
-            }
-            continue;
+            return { path, cost };
         }
-
         if (!graph[node]) continue;
-
         for (let neighbor in graph[node]) {
             if (!path.includes(neighbor)) {
                 let newCost = cost + graph[node][neighbor][key];
@@ -613,8 +653,7 @@ function bfs(graph, start, end, key) {
             }
         }
     }
-
-    return bestPath ? { path: bestPath, cost: bestCost } : null;
+    return null;
 }
 
 function bellmanFord(graph, start, end, key) {
@@ -698,6 +737,300 @@ function floydWarshall(graph, start, end, key) {
     };
 }
 
+// --- Bidirectional Dijkstra ---
+function bidirectionalDijkstra(graph, start, end, key) {
+    if (!graph[start] || !graph[end]) return null;
+    if (start === end) return { path: [start], cost: 0 };
+    let forwardDist = {}, backwardDist = {};
+    let forwardPrev = {}, backwardPrev = {};
+    let forwardVisited = new Set(), backwardVisited = new Set();
+    Object.keys(graph).forEach(v => {
+        forwardDist[v] = Infinity;
+        backwardDist[v] = Infinity;
+        forwardPrev[v] = null;
+        backwardPrev[v] = null;
+    });
+    forwardDist[start] = 0;
+    backwardDist[end] = 0;
+    let forwardHeap = new MinHeap();
+    let backwardHeap = new MinHeap();
+    forwardHeap.push([0, start]);
+    backwardHeap.push([0, end]);
+    let meetingNode = null;
+    let bestCost = Infinity;
+    while (forwardHeap.size() > 0 && backwardHeap.size() > 0) {
+        // Forward step
+        if (forwardHeap.size() > 0) {
+            const [fDist, fNode] = forwardHeap.pop();
+            if (forwardVisited.has(fNode)) continue;
+            forwardVisited.add(fNode);
+            if (backwardVisited.has(fNode)) {
+                let total = forwardDist[fNode] + backwardDist[fNode];
+                if (total < bestCost) {
+                    bestCost = total;
+                    meetingNode = fNode;
+                }
+            }
+            for (let neighbor in graph[fNode]) {
+                let alt = forwardDist[fNode] + graph[fNode][neighbor][key];
+                if (alt < forwardDist[neighbor]) {
+                    forwardDist[neighbor] = alt;
+                    forwardPrev[neighbor] = fNode;
+                    forwardHeap.push([alt, neighbor]);
+                }
+            }
+        }
+        // Backward step
+        if (backwardHeap.size() > 0) {
+            const [bDist, bNode] = backwardHeap.pop();
+            if (backwardVisited.has(bNode)) continue;
+            backwardVisited.add(bNode);
+            if (forwardVisited.has(bNode)) {
+                let total = forwardDist[bNode] + backwardDist[bNode];
+                if (total < bestCost) {
+                    bestCost = total;
+                    meetingNode = bNode;
+                }
+            }
+            for (let neighbor in graph[bNode]) {
+                let alt = backwardDist[bNode] + graph[bNode][neighbor][key];
+                if (alt < backwardDist[neighbor]) {
+                    backwardDist[neighbor] = alt;
+                    backwardPrev[neighbor] = bNode;
+                    backwardHeap.push([alt, neighbor]);
+                }
+            }
+        }
+        if (meetingNode !== null) break;
+    }
+    if (meetingNode === null) return null;
+    // Reconstruct path
+    let path = [];
+    let node = meetingNode;
+    while (node !== null) {
+        path.unshift(node);
+        node = forwardPrev[node];
+    }
+    node = backwardPrev[meetingNode];
+    while (node !== null) {
+        path.push(node);
+        node = backwardPrev[node];
+    }
+    return { path, cost: bestCost };
+}
+
+// --- Bidirectional A* ---
+function bidirectionalAstar(graph, start, end, key) {
+    if (!graph[start] || !graph[end]) return null;
+    if (start === end) return { path: [start], cost: 0 };
+    function heuristic(a, b) {
+        if (!cityPositions[a] || !cityPositions[b]) return 0;
+        const lat1 = cityPositions[a].lat;
+        const lng1 = cityPositions[a].lng;
+        const lat2 = cityPositions[b].lat;
+        const lng2 = cityPositions[b].lng;
+        const toRad = value => value * Math.PI / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a1 = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a1), Math.sqrt(1 - a1));
+        const R = 6371;
+        const distance = R * c;
+        const scaleFactor = key === 'cost' ? 20 : 0.3;
+        return distance * scaleFactor;
+    }
+    let forwardG = {}, backwardG = {};
+    let forwardF = {}, backwardF = {};
+    let forwardPrev = {}, backwardPrev = {};
+    let forwardVisited = new Set(), backwardVisited = new Set();
+    Object.keys(graph).forEach(v => {
+        forwardG[v] = Infinity;
+        backwardG[v] = Infinity;
+        forwardF[v] = Infinity;
+        backwardF[v] = Infinity;
+        forwardPrev[v] = null;
+        backwardPrev[v] = null;
+    });
+    forwardG[start] = 0;
+    forwardF[start] = heuristic(start, end);
+    backwardG[end] = 0;
+    backwardF[end] = heuristic(end, start);
+    let forwardHeap = new MinHeap();
+    let backwardHeap = new MinHeap();
+    forwardHeap.push([forwardF[start], start]);
+    backwardHeap.push([backwardF[end], end]);
+    let meetingNode = null;
+    let bestCost = Infinity;
+    while (forwardHeap.size() > 0 && backwardHeap.size() > 0) {
+        // Forward step
+        if (forwardHeap.size() > 0) {
+            const [fScore, fNode] = forwardHeap.pop();
+            if (forwardVisited.has(fNode)) continue;
+            forwardVisited.add(fNode);
+            if (backwardVisited.has(fNode)) {
+                let total = forwardG[fNode] + backwardG[fNode];
+                if (total < bestCost) {
+                    bestCost = total;
+                    meetingNode = fNode;
+                }
+            }
+            for (let neighbor in graph[fNode]) {
+                let tentativeG = forwardG[fNode] + graph[fNode][neighbor][key];
+                if (tentativeG < forwardG[neighbor]) {
+                    forwardPrev[neighbor] = fNode;
+                    forwardG[neighbor] = tentativeG;
+                    forwardF[neighbor] = tentativeG + heuristic(neighbor, end);
+                    forwardHeap.push([forwardF[neighbor], neighbor]);
+                }
+            }
+        }
+        // Backward step
+        if (backwardHeap.size() > 0) {
+            const [bScore, bNode] = backwardHeap.pop();
+            if (backwardVisited.has(bNode)) continue;
+            backwardVisited.add(bNode);
+            if (forwardVisited.has(bNode)) {
+                let total = forwardG[bNode] + backwardG[bNode];
+                if (total < bestCost) {
+                    bestCost = total;
+                    meetingNode = bNode;
+                }
+            }
+            for (let neighbor in graph[bNode]) {
+                let tentativeG = backwardG[bNode] + graph[bNode][neighbor][key];
+                if (tentativeG < backwardG[neighbor]) {
+                    backwardPrev[neighbor] = bNode;
+                    backwardG[neighbor] = tentativeG;
+                    backwardF[neighbor] = tentativeG + heuristic(neighbor, start);
+                    backwardHeap.push([backwardF[neighbor], neighbor]);
+                }
+            }
+        }
+        if (meetingNode !== null) break;
+    }
+    if (meetingNode === null) return null;
+    // Reconstruct path
+    let path = [];
+    let node = meetingNode;
+    while (node !== null) {
+        path.unshift(node);
+        node = forwardPrev[node];
+    }
+    node = backwardPrev[meetingNode];
+    while (node !== null) {
+        path.push(node);
+        node = backwardPrev[node];
+    }
+    return { path, cost: bestCost };
+}
+
+// --- Landmark-based A* (ALT Algorithm) ---
+const ALT_LANDMARKS = [];
+const ALT_DISTANCES = {};
+
+function selectLandmarks(graph, num = 3) {
+    // Pick first num cities alphabetically as landmarks
+    const cities = Object.keys(graph).sort();
+    return cities.slice(0, Math.min(num, cities.length));
+}
+
+function precomputeLandmarkDistances(graph, landmarks, key) {
+    for (const landmark of landmarks) {
+        ALT_DISTANCES[landmark] = {};
+        const dists = dijkstraAll(graph, landmark, key);
+        for (const city in dists) {
+            ALT_DISTANCES[landmark][city] = dists[city];
+        }
+    }
+}
+
+function dijkstraAll(graph, start, key) {
+    let distances = {};
+    let visited = new Set();
+    Object.keys(graph).forEach(vertex => {
+        distances[vertex] = Infinity;
+    });
+    distances[start] = 0;
+    const heap = new MinHeap();
+    heap.push([0, start]);
+    while (heap.size() > 0) {
+        const [dist, current] = heap.pop();
+        if (visited.has(current)) continue;
+        visited.add(current);
+        for (let neighbor in graph[current]) {
+            let alt = distances[current] + graph[current][neighbor][key];
+            if (alt < distances[neighbor]) {
+                distances[neighbor] = alt;
+                heap.push([alt, neighbor]);
+            }
+        }
+    }
+    return distances;
+}
+
+function altHeuristic(u, v, key) {
+    // ALT heuristic: max |d(landmark, v) - d(landmark, u)|
+    let maxDiff = 0;
+    for (const landmark of ALT_LANDMARKS) {
+        const dLtoV = ALT_DISTANCES[landmark][v] ?? Infinity;
+        const dLtoU = ALT_DISTANCES[landmark][u] ?? Infinity;
+        const diff = Math.abs(dLtoV - dLtoU);
+        if (diff > maxDiff) maxDiff = diff;
+    }
+    return maxDiff;
+}
+
+function altAstar(graph, start, end, key) {
+    if (!graph[start] || !graph[end]) return null;
+    if (ALT_LANDMARKS.length === 0) {
+        // Select and precompute for both cost and time
+        ALT_LANDMARKS.length = 0;
+        ALT_LANDMARKS.push(...selectLandmarks(graph, 3));
+        precomputeLandmarkDistances(graph, ALT_LANDMARKS, key);
+    }
+    let gScore = {};
+    let fScore = {};
+    let previous = {};
+    Object.keys(graph).forEach(node => {
+        gScore[node] = Infinity;
+        fScore[node] = Infinity;
+        previous[node] = null;
+    });
+    gScore[start] = 0;
+    fScore[start] = altHeuristic(start, end, key);
+    const heap = new MinHeap();
+    heap.push([fScore[start], start]);
+    let visited = new Set();
+    while (heap.size() > 0) {
+        const [_, current] = heap.pop();
+        if (visited.has(current)) continue;
+        visited.add(current);
+        if (current === end) {
+            let path = [];
+            let curr = end;
+            while (curr !== null) {
+                path.unshift(curr);
+                curr = previous[curr];
+            }
+            return { path, cost: gScore[end] };
+        }
+        if (!graph[current]) continue;
+        for (let neighbor in graph[current]) {
+            let weight = graph[current][neighbor][key];
+            let tentativeGScore = gScore[current] + weight;
+            if (tentativeGScore < gScore[neighbor]) {
+                previous[neighbor] = current;
+                gScore[neighbor] = tentativeGScore;
+                fScore[neighbor] = tentativeGScore + altHeuristic(neighbor, end, key);
+                heap.push([fScore[neighbor], neighbor]);
+            }
+        }
+    }
+    return null;
+}
+
 // Route Finding Functions
 function findOptimalRoute(type) {
     const start = prompt("Enter start city:").toUpperCase();
@@ -739,19 +1072,17 @@ Available cities: ${Object.keys(cityPositions).join(", ")}`);
 
 
 
-function findOptimalRouteAll() {
+async function findOptimalRouteAll() {
+    showSpinner();
     console.log("Starting findOptimalRouteAll");
-
     if (Object.keys(cityPositions).length === 0) {
         loadGujaratMap();
     }
-
     const start = prompt("Enter start city:").toUpperCase();
     const end = prompt("Enter end city:").toUpperCase();
-
     console.log(`Searching route from ${start} to ${end}`);
-
     if (!start || !end || !cityPositions[start] || !cityPositions[end]) {
+        hideSpinner();
         document.getElementById("result").innerHTML = `
             <div class="algorithm-result error">
                 <h4>Error: Invalid cities</h4>
@@ -760,8 +1091,8 @@ function findOptimalRouteAll() {
         `;
         return;
     }
-
     if (!hasValidPath(routeGraph, start, end)) {
+        hideSpinner();
         document.getElementById("result").innerHTML = `
             <div class="algorithm-result error">
                 <h4>No valid path exists between ${start} and ${end}</h4>
@@ -769,26 +1100,51 @@ function findOptimalRouteAll() {
         `;
         return;
     }
-
-    const costAlgorithms = {
-        "Dijkstra (Cost)": dijkstra(routeGraph, start, end, "cost"),
-        "A* (Cost)": astar(routeGraph, start, end, "cost"),
-        "DFS (Cost)": dfs(routeGraph, start, end, "cost"),
-        "BFS (Cost)": bfs(routeGraph, start, end, "cost"),
-        "Bellman-Ford (Cost)": bellmanFord(routeGraph, start, end, "cost"),
-        "Floyd-Warshall (Cost)": floydWarshall(routeGraph, start, end, "cost")
-    };
-
-    const timeAlgorithms = {
-        "Dijkstra (Time)": dijkstra(routeGraph, start, end, "time"),
-        "A* (Time)": astar(routeGraph, start, end, "time"),
-        "DFS (Time)": dfs(routeGraph, start, end, "time"),
-        "BFS (Time)": bfs(routeGraph, start, end, "time"),
-        "Bellman-Ford (Time)": bellmanFord(routeGraph, start, end, "time"),
-        "Floyd-Warshall (Time)": floydWarshall(routeGraph, start, end, "time")
-    };
-
-    displayResults(start, end, costAlgorithms, timeAlgorithms);
+    // List of algorithms to run
+    const algorithms = [
+        { name: "Dijkstra (Cost)", fn: dijkstra, key: "cost" },
+        { name: "A* (Cost)", fn: astar, key: "cost" },
+        { name: "DFS (Cost)", fn: dfs, key: "cost" },
+        { name: "BFS (Cost)", fn: bfs, key: "cost" },
+        { name: "Bellman-Ford (Cost)", fn: bellmanFord, key: "cost" },
+        { name: "Floyd-Warshall (Cost)", fn: floydWarshall, key: "cost" },
+        { name: "Bidirectional Dijkstra (Cost)", fn: bidirectionalDijkstra, key: "cost" },
+        { name: "Bidirectional A* (Cost)", fn: bidirectionalAstar, key: "cost" },
+        { name: "ALT A* (Cost)", fn: altAstar, key: "cost" },
+        { name: "Dijkstra (Time)", fn: dijkstra, key: "time" },
+        { name: "A* (Time)", fn: astar, key: "time" },
+        { name: "DFS (Time)", fn: dfs, key: "time" },
+        { name: "BFS (Time)", fn: bfs, key: "time" },
+        { name: "Bellman-Ford (Time)", fn: bellmanFord, key: "time" },
+        { name: "Floyd-Warshall (Time)", fn: floydWarshall, key: "time" },
+        { name: "Bidirectional Dijkstra (Time)", fn: bidirectionalDijkstra, key: "time" },
+        { name: "Bidirectional A* (Time)", fn: bidirectionalAstar, key: "time" },
+        { name: "ALT A* (Time)", fn: altAstar, key: "time" }
+    ];
+    // Run all algorithms synchronously in the main thread
+    const costAlgorithms = {};
+    const timeAlgorithms = {};
+    const timings = {};
+    for (const { name, fn, key } of algorithms) {
+        let result = null;
+        let t0 = performance.now();
+        try {
+            if (fn === astar || fn === bidirectionalAstar || fn === altAstar) {
+                result = fn(routeGraph, start, end, key, cityPositions);
+            } else {
+                result = fn(routeGraph, start, end, key);
+            }
+        } catch (err) {
+            console.warn(`Algorithm ${name} threw an error:`, err);
+            result = null;
+        }
+        let t1 = performance.now();
+        timings[name] = t1 - t0;
+        if (key === "cost") costAlgorithms[name] = result;
+        else timeAlgorithms[name] = result;
+    }
+    hideSpinner();
+    displayResults(start, end, costAlgorithms, timeAlgorithms, timings);
 }
 
 // Helper Functions
@@ -1149,4 +1505,47 @@ function addTestRoutes() {
     routeGraph["JAMNAGAR"]["RAJKOT"] = { cost: 90, time: 1.5 };
     routeGraph["JAMNAGAR"]["JUNAGADH"] = { cost: 105, time: 1.7 };
     routeGraph["JUNAGADH"]["JAMNAGAR"] = { cost: 105, time: 1.7 };
+}
+
+// --- Dynamic Cache Updates ---
+function invalidateCachesForCity(city) {
+    // Invalidate routeCache entries involving the city
+    for (const key of Array.from(routeCache.keys())) {
+        if (key.includes(`_${city}_`) || key.endsWith(`_${city}`) || key.startsWith(`${city}_`)) {
+            routeCache.delete(key);
+        }
+    }
+    // Invalidate ALT precomputes
+    ALT_LANDMARKS.length = 0;
+    for (const k in ALT_DISTANCES) delete ALT_DISTANCES[k];
+}
+
+// Patch addNewRoute to invalidate cache for both cities
+const _originalAddNewRoute = addNewRoute;
+addNewRoute = function(data) {
+    invalidateCachesForCity(data.start);
+    invalidateCachesForCity(data.end);
+    _originalAddNewRoute(data);
+};
+
+// --- UI Spinner Helpers ---
+function showSpinner() {
+    let spinner = document.getElementById('algo-spinner');
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = 'algo-spinner';
+        spinner.style.position = 'fixed';
+        spinner.style.top = '50%';
+        spinner.style.left = '50%';
+        spinner.style.transform = 'translate(-50%, -50%)';
+        spinner.style.zIndex = '9999';
+        spinner.innerHTML = '<div style="padding:20px;background:#fff;border-radius:8px;box-shadow:0 2px 8px #0002;font-size:1.2em;">⏳ Calculating routes...</div>';
+        document.body.appendChild(spinner);
+    } else {
+        spinner.style.display = 'block';
+    }
+}
+function hideSpinner() {
+    let spinner = document.getElementById('algo-spinner');
+    if (spinner) spinner.style.display = 'none';
 }

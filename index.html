@@ -6,12 +6,13 @@
     <link rel="stylesheet" type="text/css" href="styles.css">
 </head>
 <body>
-    <h2>Logistics Route Optimization</h2>
+    <h2>FleetFlow: Route Optimization Dashboard</h2>
     
     <!-- Add result div at the top -->
     <div id="result"></div>
     
     <div class="container">
+        <h2><b><label>Make Map</label></b></h2>
         <div class="input-group">
             <label for="startCity">Start City:</label>
             <input type="text" id="startCity" placeholder="Enter start city">
@@ -36,7 +37,7 @@
             <button id="addData">Add Route</button>
             <button id="findMinCost">Find Minimum Cost Route</button>
             <button id="findMinTime">Find Minimum Time Route</button>
-            <button id="findAllRoutes">Compare All Routes</button>
+            <button id="findAllRoutes">Compare All Algorithms</button>
             <button id="loadGujaratMap">Load Gujarat Map</button>
             <button id="clearMap">Clear Map</button>
         </div>
@@ -44,7 +45,13 @@
 
     <!-- Network visualization container -->
     <div id="network-visualization"></div>
+    <div id="map-legend">
+        <span><span class="legend-dot cost"></span>Min Cost Route</span>
+        <span><span class="legend-dot time"></span>Min Time Route</span>
+        <span><span class="legend-dot default"></span>Other Routes</span>
+    </div>
 
+    <!-- pathfinding.worker.js is used as a Web Worker for pathfinding algorithms. Loaded from script.js. -->
     <script src="script.js"></script>
 </body>
 </html>
